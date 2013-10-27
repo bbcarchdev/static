@@ -81,6 +81,11 @@ class StaticGen
 		 * hook the process.
 		 */
 		self::$instance = $this;
+		add_action('admin_init', array($this, 'admin_init'));
+		if(!defined('SOFA_STATIC_PATH'))
+		{
+			return;
+		}
 		add_action('init', array($this, 'init'), 1000);
 		$this->utc = new DateTimeZone('UTC');
 		@$st = stat(SOFA_STATIC_PATH . '/.thespace-app-installed');
@@ -141,6 +146,59 @@ class StaticGen
 			wp_schedule_event($initial, 'halfhourly', 'staticgen_rebuild_periodic');
 		}
 		
+	}
+	
+	public /*callback*/ function admin_init()
+	{
+		add_settings_section('staticgen', 'Static site generation', array($this, 'admin_settings_section'), 'permalink');
+	}
+	
+	public /*callback*/ function admin_settings_section()
+	{
+		if(!defined('SOFA_STATIC_PATH'))
+		{
+			echo '<div class="error"><p><strong>Static site generation:</strong> <code>SOFA_STATIC_PATH</code> is not defined in <code>wp-config.php</code>. It must be set to the absolute path of the directory where the static tree will be written.</p></div>';
+		}
+		else if(!file_exists(SOFA_STATIC_PATH))
+		{
+			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>SOFA_STATIC_PATH</code> does not exist. It must refer to a directory which is writeable by the web server user.</p></div>';		
+		}
+		else if(!is_dir(SOFA_STATIC_PATH))
+		{
+			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>SOFA_STATIC_PATH</code> is not a directory.</p></div>';		
+		}
+		else if(function_exists('posix_access') && !posix_access(SOFA_STATIC_PATH, POSIX_W_OK))
+		{
+			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>SOFA_STATIC_PATH</code> is not writeable by the web server.</p></div>';		
+		}
+		$permalink = get_option('permalink_structure');
+		if(!strlen($permalink) || strpos($permalink, '?') !== false)
+		{
+			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
+		}
+		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
+		$defines = array('SOFA_STATIC_PATH', 'SOFA_STATIC_SOURCE_HOST', 'SOFA_STATIC_PUBLIC_HOST', 'SOFA_STATIC_DEBUG', 'SOFA_STATIC_INHIBIT_FETCH', 'SOFA_STATIC_INHIBIT_CRON_REBUILD', 'SOFA_STATIC_REBUILD_ON_SAVE', 'THESPACE_INSTANCE');
+		echo '<table class="widefat">';
+		echo '<thead>';
+		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
+		echo '</thead>';
+		echo '<tbody>';
+		foreach($defines as $name)
+		{
+			echo '<tr><th scope="row"><code>'. htmlspecialchars($name) . '</code></th>';
+			if(!defined($name))
+			{
+				echo '<td class="undefined"><i>Undefined</i></td>';
+			}
+			else
+			{
+				echo '<td><code>' . htmlspecialchars(constant($name)) . '</code></td>';
+			}
+			echo '</tr>';
+		}
+		echo '<tr><th scope="row">Permalink structure:</th><td><code>' . htmlspecialchars($permalink) . '</code></td></tr>';
+		echo '</tbody>';
+		echo '</table>';
 	}
 	
 	public function touch($post)
@@ -1133,9 +1191,6 @@ class StaticGen
 	}
 }
 
-if(defined('SOFA_STATIC_PATH'))
-{
-	$staticgen = new StaticGen();
-}
+$staticgen = new StaticGen();
 
 
