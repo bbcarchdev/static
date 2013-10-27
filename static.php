@@ -741,10 +741,10 @@ class StaticGen
 		{
 			$siteurl = get_blog_option($blogId, 'siteurl');
 		}
-		/* Ensure the site URL always has a trailing slash */
-		if(substr($siteurl, -1) != '/')
+		/* Ensure the site URL does not have a trailing slash */
+		if(substr($siteurl, -1) == '/')
 		{
-			$siteurl .= '/';
+			$siteurl = substr($siteurl, 0, -1);
 		}
 		$this->siteUrl[$blogId] = $siteurl;
 		return $siteurl;
