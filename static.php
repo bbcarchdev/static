@@ -1,8 +1,9 @@
 <?php
 /*
 Plugin Name: The Space: Static Site Generator
-Author: Mo McRoberts
+Author: BBC Archive Development
 Author URI: http://www.bbc.co.uk/
+Description: Generates a completely static version of the website 
 */
 
 /*
