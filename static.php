@@ -77,6 +77,12 @@ if(!defined('STATICGEN_USE_ASIS'))
 	 */
 	define('STATICGEN_USE_ASIS', false);
 }
+if(!defined('STATICGEN_USE_VAR'))
+{
+	/* If defined to true, write a var-map file in each directory */
+	define('STATICGEN_USE_VAR', false);
+}
+
 class StaticGen
 {
 	protected $siteUrl = array();
@@ -199,7 +205,7 @@ class StaticGen
 			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
 		}
 		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
-		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE', 'STATICGEN_USE_ASIS', 'STATICGEN_VAR_IN_PARENT');
+		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE', 'STATICGEN_USE_ASIS', 'STATICGEN_USE_VAR', 'STATICGEN_VAR_IN_PARENT');
 		echo '<table class="widefat">';
 		echo '<thead>';
 		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
@@ -986,7 +992,10 @@ class StaticGen
 	/* Write a type-map document at a given filesystem path */
 	protected function writeTypeMap($path, $uriPrefix)
 	{
-//		echo "<pre>[writeTypeMap: path=$path, uriPrefix=$uriPrefix]</pre>\n";
+		if(!STATICGEN_USE_VAR)
+		{
+			return;
+		}
 		$f = fopen($path, 'w');
 		chmod($path, 0666);
 		fwrite($f, "Content-Type: text/html;q=1.0\n");
