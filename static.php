@@ -357,29 +357,43 @@ class StaticGen
 		$this->log('Static tree update completed');
 		$this->building = false;
 	}
-
+	
+	protected function lockInstance()
+	{
+		$wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`option_name`, `option_value`) VALUES ('_static_instance', '');");			
+		/* Reset _static_instance to THESPACE_INSTANCE  where _static_instance is an empty string*/
+		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", THESPACE_INSTANCE, '_static_instance', ''));
+		/* Check that $croninst matches THESPACE_INSTANCES following the UPDATE -- if not, bail out */
+		$croninst = $wpdb->get_var($wpdb->prepare('SELECT `option_value` FROM ' . $wpdb->options . ' WHERE `option_name` = %s', '_static_instance'));		
+		if(strcmp($croninst, THESPACE_INSTANCE))
+		{
+			$this->log("_static_instance is " . $croninst . ", this node is " . THESPACE_INSTANCE . ", aborting publishing run");
+			return false;
+		}
+		return true;
+	}
+	
+	protected function unlockInstance()
+	{
+		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', THESPACE_INSTANCE));
+	}
+	
 	/* Regenerate the static version of the entire site, removing the
 	 * previous version.
 	 */
 	public function rebuild()
 	{
 		global $wpdb;
-		
-		$wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`blog_id`, `option_name`, `option_value`) VALUES (0, '_static_instance', '');");
-		/* Reset _static_instance to THESPACE_INSTANCE  where _static_instance is an empty string*/
-		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", THESPACE_INSTANCE, '_static_instance', ''));
-		/* Check that $croninst matches THESPACE_INSTANCES following the UPDATE -- if not, bail out */
-		$croninst = $wpdb->get_var($wpdb->prepare('SELECT `option_value` FROM ' . $wpdb->options . ' WHERE `option_name` = %s', '_static_instance'));
-		if(strcmp($croninst, THESPACE_INSTANCE))
+
+		if(!$this->lockInstance())
 		{
-			$this->log("_static_instance is " . $croninst . ", this node is " . THESPACE_INSTANCE);
 			return;
 		}
 		$inhibit = apply_filters('flagpole', false, 'inhibit-publishing');
 		if($inhibit)
 		{
-			$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', THESPACE_INSTANCE));
 			$this->log('Flagpole "inhibit-publishing is set"');
+			$this->unlockInstance();
 			return;
 		}
 		set_time_limit(0);
@@ -430,7 +444,7 @@ class StaticGen
 			$this->recursiveRemove($prev);
 			$this->log('Removal of', $prev, 'complete');
 		}
-		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', THESPACE_INSTANCE));
+		$this->unlockInstance();
 		$f = fopen(SOFA_STATIC_PATH . '/build-stamp', 'w');
 		fclose($f);
 		$this->log('Rebuild complete');
