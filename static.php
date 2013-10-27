@@ -58,7 +58,6 @@ if(!defined('STATICGEN_REBUILD_ON_SAVE'))
 	define('STATICGEN_REBUILD_ON_SAVE', false);
 }
 
-
 class StaticGen
 {
 	protected $siteUrl = array();
@@ -81,7 +80,7 @@ class StaticGen
 		 */
 		self::$instance = $this;
 		add_action('admin_init', array($this, 'admin_init'));
-		if(!defined('STATICGEN_PATH'))
+		if(!defined('STATICGEN_PATH') || !defined('STATICGEN_PUBLIC_URL'))
 		{
 			return;
 		}
@@ -170,13 +169,17 @@ class StaticGen
 		{
 			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>STATICGEN_PATH</code> is not writeable by the web server.</p></div>';		
 		}
+		if(!defined('STATICGEN_PUBLIC_URL'))
+		{
+			echo '<div class="error"><p><strong>Static site generation:</strong> <code>STATICGEN_PUBLIC_URL</code> must be set to the base URL <strong>including trailing slash</strong> which will be used to serve the static site (e.g., <code>http://example.com/</code>)</p></div>';
+		}
 		$permalink = get_option('permalink_structure');
 		if(!strlen($permalink) || strpos($permalink, '?') !== false)
 		{
 			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
 		}
 		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
-		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_HOST', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE');
+		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE');
 		echo '<table class="widefat">';
 		echo '<thead>';
 		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
@@ -894,7 +897,7 @@ class StaticGen
 					{
 						$location = substr($location, 1);
 					}
-					$location = STATICGEN_PUBLIC_HOST . $location;
+					$location = STATICGEN_PUBLIC_URL . $location;
 				}
 				$this->writeContentForLink($permalink, '', array(
 					'Status' => '301 Moved',
