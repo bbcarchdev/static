@@ -129,7 +129,8 @@ class StaticGen
 	{
 		$this->registerMIMEType('text/html', array('ext' => '.html', 'hidden' => true));
 		do_action('staticgen_init', $this);
-		/* Phases */		
+		/* Phases */
+		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_home'));
 		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_taxonomies'));
 /*		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_users')); */
 		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_archives'));
@@ -558,6 +559,12 @@ class StaticGen
 		} while ( next($wp_filter[$tag]) !== false );
 		array_pop($wp_current_filter);		
 		$this->log('Completed action:', $tag);
+	}
+	
+	/* Write the site homepage, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
+	public /*callback*/ function staticgen_rebuild_home($instance)
+	{
+		$this->fetchAndStore('/');
 	}
 
 	/* Write all posts, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
