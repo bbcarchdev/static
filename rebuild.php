@@ -38,9 +38,9 @@ if(!defined('STATICGEN_PATH'))
 	echo "STATICGEN_PATH is not defined, aborting.\n";
 	exit(1);
 }
-if(!defined('STATICGEN_SOURCE_HOST'))
+if(!defined('STATICGEN_PUBLIC_URL'))
 {
-	echo "STATICGEN_SOURCE_HOST is not defined, aborting.\n";
+	echo "STATICGEN_PUBLIC_URL is not defined, aborting.\n";
 	exit(1);
 }
 
