@@ -192,7 +192,15 @@ class StaticGen
 			}
 			else
 			{
-				echo '<td><code>' . htmlspecialchars(constant($name)) . '</code></td>';
+				$value = constant($name);
+				if(is_bool($value))
+				{
+					echo '<td>' . ($value ? 'True' : 'False') . '</td>';
+				}
+				else
+				{
+					echo '<td><code>' . htmlspecialchars($value) . '</code></td>';
+				}
 			}
 			echo '</tr>';
 		}
