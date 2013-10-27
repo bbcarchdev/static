@@ -57,6 +57,19 @@ if(!defined('STATICGEN_REBUILD_ON_SAVE'))
 	 */
 	define('STATICGEN_REBUILD_ON_SAVE', false);
 }
+if(!defined('STATICGEN_VAR_IN_PARENT'))
+{
+	/* If defined to true, write var-map files into the parent directory, e.g.:
+	 *   1.var
+	 *   1/index.html
+	 *   1/index.json
+	 * If defined to false, var-map files are written into the subdirectory:
+	 *   1/index.var
+	 *   1/index.html
+	 *   1/index.json
+	 */
+	define('STATICGEN_VAR_IN_PARENT', false);
+}
 
 class StaticGen
 {
@@ -179,7 +192,7 @@ class StaticGen
 			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
 		}
 		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
-		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE');
+		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE', 'STATICGEN_VAR_IN_PARENT');
 		echo '<table class="widefat">';
 		echo '<thead>';
 		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
@@ -846,7 +859,14 @@ class StaticGen
 			$destDir = realpath($destDir . '/..');
 			if($first)
 			{
-				$this->writeTypeMap($destDir . '/' . $last . '.var', $last . '/');
+				if(STATICGEN_VAR_IN_PARENT)
+				{
+					$this->writeTypeMap($destDir . '/' . $last . '.var', $last . '/');					
+				}
+				else
+				{
+					$this->writeTypeMap($destDir . '/' . $last . '/index.var', '');
+				}
 			}
 			if(!strcmp($destDir, $base))
 			{
