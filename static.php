@@ -70,7 +70,13 @@ if(!defined('STATICGEN_VAR_IN_PARENT'))
 	 */
 	define('STATICGEN_VAR_IN_PARENT', false);
 }
-
+if(!defined('STATICGEN_USE_ASIS'))
+{
+	/* If defined to true, write all objects as .asis files including the literal
+	 * HTTP headers to be sent
+	 */
+	define('STATICGEN_USE_ASIS', false);
+}
 class StaticGen
 {
 	protected $siteUrl = array();
@@ -193,7 +199,7 @@ class StaticGen
 			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
 		}
 		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
-		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE', 'STATICGEN_VAR_IN_PARENT');
+		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_URL', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE', 'STATICGEN_USE_ASIS', 'STATICGEN_VAR_IN_PARENT');
 		echo '<table class="widefat">';
 		echo '<thead>';
 		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
@@ -984,7 +990,14 @@ class StaticGen
 		$f = fopen($path, 'w');
 		chmod($path, 0666);
 		fwrite($f, "Content-Type: text/html;q=1.0\n");
-		fwrite($f, "URI: " . $uriPrefix . "index.html.asis\n");
+		if(STATICGEN_USE_ASIS)
+		{
+			fwrite($f, "URI: " . $uriPrefix . "index.html.asis\n");
+		}
+		else
+		{
+			fwrite($f, "URI: " . $uriPrefix . "index.html\n");
+		}
 		fwrite($f, "\n");
 		foreach($this->types as $mime => $typeinfo)
 		{
@@ -994,7 +1007,14 @@ class StaticGen
 			}
 			$mime = isset($typeinfo['negotiateAs']) ? $typeinfo['negotiateAs'] : $mime;
 			fwrite($f, "Content-Type: " . $mime . ";q=0.9\n");
-			fwrite($f, "URI: " . $uriPrefix . "index" . $typeinfo['ext'] . ".asis\n");
+			if(STATICGEN_USE_ASIS)
+			{
+				fwrite($f, "URI: " . $uriPrefix . "index" . $typeinfo['ext'] . ".asis\n");
+			}
+			else
+			{
+				fwrite($f, "URI: " . $uriPrefix . "index" . $typeinfo['ext'] . "\n");
+			}
 			fwrite($f, "\n");
 		}
 		fclose($f);
@@ -1008,28 +1028,35 @@ class StaticGen
 		{
 			return;
 		}
-		if(!isset($headers['Status']))
-		{
-			$headers['Status'] = '200 OK';
-		}
-		if(!isset($headers['Content-Location']) && !isset($headers['Location']))
-		{
-			$headers['Content-Location'] = $this->contentPath($sourceUrl, $defaultExt);
-		}
-		$buf = array();
-		foreach($headers as $key => $value)
-		{
-			$buf[] = $key . ': ' . $value;
-		}
-		$buf[] = '';
-		$buf[] = $content;
 		$destPath = STATICGEN_PATH . '/' . $this->subdir . $path;
 		$destDir = dirname($destPath);
-//		echo "<pre>[writeContentForLink: destPath = " . $destPath . ", destDir = " . $destDir . "]</pre>\n";
 		$this->mkdir($destDir);
-		file_put_contents($destPath . '.asis', implode("\n", $buf));
-		chmod($destPath . '.asis', 0666);
-	}		
+		if(STATICGEN_USE_ASIS)
+		{
+			$buf = array();
+			if(!isset($headers['Status']))
+			{
+				$headers['Status'] = '200 OK';
+			}
+			if(!isset($headers['Content-Location']) && !isset($headers['Location']))
+			{
+				$headers['Content-Location'] = $this->contentPath($sourceUrl, $defaultExt);
+			}
+			foreach($headers as $key => $value)
+			{
+				$buf[] = $key . ': ' . $value;
+			}
+			$buf[] = '';
+			$buf[] = $content;
+			file_put_contents($destPath . '.asis', implode("\n", $buf));
+			chmod($destPath . '.asis', 0666);
+		}
+		else
+		{
+			file_put_contents($destPath, $content);
+			chmod($destPath, 0666);
+		}
+	}
 
 	/* Update an individual static resource which will be retrieved from the source */
 	protected function fetchAndStore($sourceUrl, $defaultExt = '.html', $cacheTime = null, $contentType = 'text/html')
