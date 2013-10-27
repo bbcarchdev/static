@@ -28,9 +28,9 @@ else
 {
 	require_once(dirname(__FILE__) . '/../../../wp-config.php');
 }
-if(!defined('THESPACE_INSTANCE'))
+if(!defined('STATICGEN_INSTANCE'))
 {
-	define('THESPACE_INSTANCE', php_uname('n'));
+	define('STATICGEN_INSTANCE', php_uname('n'));
 }
 
 global $wpdb;
@@ -38,5 +38,5 @@ global $wpdb;
 $wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`blog_id`, `option_name`, `option_value`) VALUES (0, '_static_instance', '');");
 /* Find out whether the UPDATE changed anything */
 $croninst = $wpdb->get_var($wpdb->prepare('SELECT `option_value` FROM ' . $wpdb->options . ' WHERE `option_name` = %s', '_static_instance'));
-echo "_static_instance is " . $croninst . ", this node is " . THESPACE_INSTANCE . "\n";
+echo "_static_instance is " . $croninst . ", this node is " . STATICGEN_INSTANCE . "\n";
 

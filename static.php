@@ -22,10 +22,9 @@ Description: Generates a completely static version of the website
  *  limitations under the License.
  */
 
-if(!defined('STATICGEN_PUBLIC_HOST')) define('STATICGEN_PUBLIC_HOST', 'http://thespace.org/');
 if(!defined('STATICGEN_DEBUG'))
 {
-	if(!defined('THESPACE_ENV') || THESPACE_ENV != 'live')
+	if(!defined('STATICGEN_ENV') || STATICGEN_ENV != 'live')
 	{
 		define('STATICGEN_DEBUG', true);
 	}
@@ -38,9 +37,9 @@ if(!defined('STATICGEN_INHIBIT_FETCH'))
 {
 	define('STATICGEN_INHIBIT_FETCH', false);
 }
-if(!defined('THESPACE_INSTANCE'))
+if(!defined('STATICGEN_INSTANCE'))
 {
-	define('THESPACE_INSTANCE', php_uname('n'));
+	define('STATICGEN_INSTANCE', php_uname('n'));
 }
 if(!defined('STATICGEN_INHIBIT_CRON_REBUILD'))
 {
@@ -177,7 +176,7 @@ class StaticGen
 			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
 		}
 		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
-		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_HOST', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'THESPACE_INSTANCE');
+		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_HOST', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'STATICGEN_INSTANCE');
 		echo '<table class="widefat">';
 		echo '<thead>';
 		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
@@ -361,13 +360,13 @@ class StaticGen
 	protected function lockInstance()
 	{
 		$wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`option_name`, `option_value`) VALUES ('_static_instance', '');");			
-		/* Reset _static_instance to THESPACE_INSTANCE  where _static_instance is an empty string*/
-		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", THESPACE_INSTANCE, '_static_instance', ''));
-		/* Check that $croninst matches THESPACE_INSTANCES following the UPDATE -- if not, bail out */
+		/* Reset _static_instance to STATICGEN_INSTANCE  where _static_instance is an empty string*/
+		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", STATICGEN_INSTANCE, '_static_instance', ''));
+		/* Check that $croninst matches STATICGEN_INSTANCES following the UPDATE -- if not, bail out */
 		$croninst = $wpdb->get_var($wpdb->prepare('SELECT `option_value` FROM ' . $wpdb->options . ' WHERE `option_name` = %s', '_static_instance'));		
-		if(strcmp($croninst, THESPACE_INSTANCE))
+		if(strcmp($croninst, STATICGEN_INSTANCE))
 		{
-			$this->log("_static_instance is " . $croninst . ", this node is " . THESPACE_INSTANCE . ", aborting publishing run");
+			$this->log("_static_instance is " . $croninst . ", this node is " . STATICGEN_INSTANCE . ", aborting publishing run");
 			return false;
 		}
 		return true;
@@ -375,7 +374,7 @@ class StaticGen
 	
 	protected function unlockInstance()
 	{
-		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', THESPACE_INSTANCE));
+		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', STATICGEN_INSTANCE));
 	}
 	
 	/* Regenerate the static version of the entire site, removing the

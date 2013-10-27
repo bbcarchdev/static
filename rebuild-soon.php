@@ -28,9 +28,9 @@ else
 {
 	require_once(dirname(__FILE__) . '/../../../wp-config.php');
 }
-if(!defined('THESPACE_INSTANCE'))
+if(!defined('STATICGEN_INSTANCE'))
 {
-	define('THESPACE_INSTANCE', php_uname('n'));
+	define('STATICGEN_INSTANCE', php_uname('n'));
 }
 
 $inhibit = apply_filters('flagpole', false, 'inhibit-publishing');
