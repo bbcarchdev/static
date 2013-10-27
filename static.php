@@ -671,15 +671,15 @@ class StaticGen
 	public /*callback*/ function staticgen_rebuild_feeds($instance)
 	{
 		$feeds = array(
-			'/feed' => '.rss',
-			'/feed/rss' => '.rss',
-			'/feed/rss2' => '.rss',
-			'/feed/atom' => '.atom',
-			'/feed/rdf' => '.rdf',
+			'/feed' => array('.rss', 'application/rss+xml'),
+			'/feed/rss' => array('.rss', 'application/rss+xml'),
+			'/feed/rss2' => array('.rss', 'application/rss+xml'),
+			'/feed/atom' => array('.atom', 'application/atom+xml'),
+			'/feed/rdf' => array('.rdf', 'application/rdf+xml'),
 			);
-		foreach($feeds as $uri => $defaultExt)
+		foreach($feeds as $uri => $info)
 		{
-			$this->fetchAndStore($uri, $defaultExt);
+			$this->fetchAndStore($uri, $info[0], null, $info[1]);
 		}
 	}
 	
@@ -1032,7 +1032,7 @@ class StaticGen
 	}		
 
 	/* Update an individual static resource which will be retrieved from the source */
-	protected function fetchAndStore($sourceUrl, $defaultExt = '.html', $cacheTime = null)
+	protected function fetchAndStore($sourceUrl, $defaultExt = '.html', $cacheTime = null, $contentType = 'text/html')
 	{
 		if(isset($this->deferList))
 		{
@@ -1088,7 +1088,7 @@ class StaticGen
 		}
 		$headers = array(
 			'Status' => '200 OK',
-			'Content-Type' => 'text/html',
+			'Content-Type' => $contentType,
 			'Content-Location' => $this->contentPath($sourceUrl, $defaultExt),
 		);
 		return $this->writeContentForLink($sourceUrl, $buf, $headers, $defaultExt);
