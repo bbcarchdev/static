@@ -1201,7 +1201,7 @@ class StaticGen
 				$root .= '/';
 			}
 		}
-		$this->fetchAndStore($root . $year);
+		$this->fetchAndStore(get_year_link($year));
 		for($month = 1; $month <= 12; $month++)
 		{			
 			$a = sprintf('%04d-%02d-01 00:00:00', $year, $month);
@@ -1217,7 +1217,7 @@ class StaticGen
 	/* Update the static version of a monthly archive */
 	protected function updateMonthArchive($year, $month, $root)
 	{
-		$this->fetchAndStore(sprintf($root . '%04d/%02d', $year, $month));
+		$this->fetchAndStore(get_month_link($year, $month));
 	}
 
 	/* Update the static version of an author page */
