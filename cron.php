@@ -31,23 +31,23 @@ if(!defined('THESPACE_INSTANCE'))
 {
 	define('THESPACE_INSTANCE', php_uname('n'));
 }
-if(!defined('SOFA_STATIC_PATH'))
+if(!defined('STATICGEN_PATH'))
 {
-	echo "SOFA_STATIC_PATH is not defined, aborting.\n";
+	echo "STATICGEN_PATH is not defined, aborting.\n";
 	exit(1);
 }
-if(!defined('SOFA_STATIC_SOURCE_HOST'))
+if(!defined('STATICGEN_SOURCE_HOST'))
 {
-	echo "SOFA_STATIC_SOURCE_HOST is not defined, aborting.\n";
+	echo "STATICGEN_SOURCE_HOST is not defined, aborting.\n";
 	exit(1);
 }
-if(!is_array($SOFA_STATIC_RSYNC_DEST))
+if(!is_array($STATICGEN_RSYNC_DEST))
 {
-	$SOFA_STATIC_RSYNC_DEST = array();
+	$STATICGEN_RSYNC_DEST = array();
 }
-if(!defined('SOFA_STATIC_RSYNC_ARGS'))
+if(!defined('STATICGEN_RSYNC_ARGS'))
 {
-	define('SOFA_STATIC_RSYNC_ARGS', '');
+	define('STATICGEN_RSYNC_ARGS', '');
 }
 if(!defined('RSYNC_PATH'))
 {
@@ -55,28 +55,28 @@ if(!defined('RSYNC_PATH'))
 }
 global $wpdb;
 
-$old = trim(@file_get_contents(SOFA_STATIC_PATH . '/synced'));
+$old = trim(@file_get_contents(STATICGEN_PATH . '/synced'));
 /** Trigger wp-cron **/
 delete_transient('doing_cron'); // avoid WP cron locking which assumes local connections work
 $ctx = stream_context_create(array('http' => array( 'timeout' => 2400 ) ) );
-$buf = file_get_contents('http://' . SOFA_STATIC_SOURCE_HOST . '/wp-cron.php?doing_wp_cron', 0, $ctx);
+$buf = file_get_contents('http://' . STATICGEN_SOURCE_HOST . '/wp-cron.php?doing_wp_cron', 0, $ctx);
 if ($buf === FALSE)
 {
         echo "/wp-cron.php failed!";
         exit(1);
 }
-if(!file_exists(SOFA_STATIC_PATH . '/current'))
+if(!file_exists(STATICGEN_PATH . '/current'))
 {
-	echo SOFA_STATIC_PATH . "/current does not exist, aborting.\n";
+	echo STATICGEN_PATH . "/current does not exist, aborting.\n";
 	exit(0);
 }
-$new = readlink(SOFA_STATIC_PATH . '/current');
+$new = readlink(STATICGEN_PATH . '/current');
 $errors = array();
 if(strcmp($new, $old))
 {
-	foreach ($SOFA_STATIC_RSYNC_DEST as $dest) {
-		$command = escapeshellcmd(RSYNC_PATH) . " -a --delete " . SOFA_STATIC_RSYNC_ARGS . " " . escapeshellarg(SOFA_STATIC_PATH  . '/current/') . " " . escapeshellarg($dest);
-		if(defined('SOFA_STATIC_VERBOSE_SYNC') && SOFA_STATIC_VERBOSE_SYNC)
+	foreach ($STATICGEN_RSYNC_DEST as $dest) {
+		$command = escapeshellcmd(RSYNC_PATH) . " -a --delete " . STATICGEN_RSYNC_ARGS . " " . escapeshellarg(STATICGEN_PATH  . '/current/') . " " . escapeshellarg($dest);
+		if(defined('STATICGEN_VERBOSE_SYNC') && STATICGEN_VERBOSE_SYNC)
 		{
 			echo "+ $command\n";
 		}
@@ -89,11 +89,11 @@ if(strcmp($new, $old))
 	}
 	if(count($errors) === 0)
 	{
-		file_put_contents(SOFA_STATIC_PATH . '/synced', $new);
+		file_put_contents(STATICGEN_PATH . '/synced', $new);
 	}
 	else
 	{
-		if(defined('SOFA_STATIC_VERBOSE_SYNC') && SOFA_STATIC_VERBOSE_SYNC)
+		if(defined('STATICGEN_VERBOSE_SYNC') && STATICGEN_VERBOSE_SYNC)
 		{
 			echo "errors with targets:\n";
 			foreach ($errors as $error)

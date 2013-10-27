@@ -22,41 +22,41 @@ Description: Generates a completely static version of the website
  *  limitations under the License.
  */
 
-if(!defined('SOFA_STATIC_PUBLIC_HOST')) define('SOFA_STATIC_PUBLIC_HOST', 'http://thespace.org/');
-if(!defined('SOFA_STATIC_DEBUG'))
+if(!defined('STATICGEN_PUBLIC_HOST')) define('STATICGEN_PUBLIC_HOST', 'http://thespace.org/');
+if(!defined('STATICGEN_DEBUG'))
 {
 	if(!defined('THESPACE_ENV') || THESPACE_ENV != 'live')
 	{
-		define('SOFA_STATIC_DEBUG', true);
+		define('STATICGEN_DEBUG', true);
 	}
 	else
 	{
-		define('SOFA_STATIC_DEBUG', false);
+		define('STATICGEN_DEBUG', false);
 	}
 }
-if(!defined('SOFA_STATIC_INHIBIT_FETCH'))
+if(!defined('STATICGEN_INHIBIT_FETCH'))
 {
-	define('SOFA_STATIC_INHIBIT_FETCH', false);
+	define('STATICGEN_INHIBIT_FETCH', false);
 }
 if(!defined('THESPACE_INSTANCE'))
 {
 	define('THESPACE_INSTANCE', php_uname('n'));
 }
-if(!defined('SOFA_STATIC_INHIBIT_CRON_REBUILD'))
+if(!defined('STATICGEN_INHIBIT_CRON_REBUILD'))
 {
 	/* By default, allow a periodic rebuild to be triggered by wp-cron. Define
 	 * this to true if the rebuild.php script will be invoked externally on
 	 * a periodic basis (as the web server user) instead.
 	 */
-	define('SOFA_STATIC_INHIBIT_CRON_REBUILD', false);
+	define('STATICGEN_INHIBIT_CRON_REBUILD', false);
 }
-if(!defined('SOFA_STATIC_REBUILD_ON_SAVE'))
+if(!defined('STATICGEN_REBUILD_ON_SAVE'))
 {
 	/* By default, a 'build' event (i.e., in-place update of recent changes)
-	 * will be invoked via wp-cron. If SOFA_STATIC_REBUILD_ON_SAVE is true,
+	 * will be invoked via wp-cron. If STATICGEN_REBUILD_ON_SAVE is true,
 	 * the actual build process will occur as part of the save_post handler
 	 */
-	define('SOFA_STATIC_REBUILD_ON_SAVE', false);
+	define('STATICGEN_REBUILD_ON_SAVE', false);
 }
 
 
@@ -82,13 +82,13 @@ class StaticGen
 		 */
 		self::$instance = $this;
 		add_action('admin_init', array($this, 'admin_init'));
-		if(!defined('SOFA_STATIC_PATH'))
+		if(!defined('STATICGEN_PATH'))
 		{
 			return;
 		}
 		add_action('init', array($this, 'init'), 1000);
 		$this->utc = new DateTimeZone('UTC');
-		@$st = stat(SOFA_STATIC_PATH . '/.thespace-app-installed');
+		@$st = stat(STATICGEN_PATH . '/.thespace-app-installed');
 		$this->baseTime = null;
 		if(is_array($st) && isset($st['mtime']))
 		{
@@ -99,7 +99,7 @@ class StaticGen
 	/* This method is public so that plugins can invoke it for debug-logging */
 	public function log()
 	{
-		if(!SOFA_STATIC_DEBUG) return;
+		if(!STATICGEN_DEBUG) return;
 		if($this->start === null)
 		{
 			$this->start = microtime(true);
@@ -126,7 +126,7 @@ class StaticGen
 		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_posts'), 200, 1);
 		/* Cron actions */
 		add_action('staticgen_build', array($this, 'staticgen_build'));
-		if(!SOFA_STATIC_INHIBIT_CRON_REBUILD)
+		if(!STATICGEN_INHIBIT_CRON_REBUILD)
 		{
 			add_action('staticgen_rebuild', array($this, 'staticgen_rebuild'));
 			add_action('staticgen_rebuild_periodic', array($this, 'staticgen_rebuild'));
@@ -138,7 +138,7 @@ class StaticGen
 		/* Callable actions */
 		add_action('static_update_object', array($this, 'static_update_object'), 10, 4);
 		add_action('static_update_post', array($this, 'static_update_post'));	
-		if(!SOFA_STATIC_INHIBIT_CRON_REBUILD && !wp_next_scheduled('staticgen_rebuild_periodic'))
+		if(!STATICGEN_INHIBIT_CRON_REBUILD && !wp_next_scheduled('staticgen_rebuild_periodic'))
 		{
 			$this->log('Installing periodic rebuild cron job');
 			// Run at 25 minutes past the hour/5 minutes to the hour
@@ -155,21 +155,21 @@ class StaticGen
 	
 	public /*callback*/ function admin_settings_section()
 	{
-		if(!defined('SOFA_STATIC_PATH'))
+		if(!defined('STATICGEN_PATH'))
 		{
-			echo '<div class="error"><p><strong>Static site generation:</strong> <code>SOFA_STATIC_PATH</code> is not defined in <code>wp-config.php</code>. It must be set to the absolute path of the directory where the static tree will be written.</p></div>';
+			echo '<div class="error"><p><strong>Static site generation:</strong> <code>STATICGEN_PATH</code> is not defined in <code>wp-config.php</code>. It must be set to the absolute path of the directory where the static tree will be written.</p></div>';
 		}
-		else if(!file_exists(SOFA_STATIC_PATH))
+		else if(!file_exists(STATICGEN_PATH))
 		{
-			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>SOFA_STATIC_PATH</code> does not exist. It must refer to a directory which is writeable by the web server user.</p></div>';		
+			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>STATICGEN_PATH</code> does not exist. It must refer to a directory which is writeable by the web server user.</p></div>';		
 		}
-		else if(!is_dir(SOFA_STATIC_PATH))
+		else if(!is_dir(STATICGEN_PATH))
 		{
-			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>SOFA_STATIC_PATH</code> is not a directory.</p></div>';		
+			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>STATICGEN_PATH</code> is not a directory.</p></div>';		
 		}
-		else if(function_exists('posix_access') && !posix_access(SOFA_STATIC_PATH, POSIX_W_OK))
+		else if(function_exists('posix_access') && !posix_access(STATICGEN_PATH, POSIX_W_OK))
 		{
-			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>SOFA_STATIC_PATH</code> is not writeable by the web server.</p></div>';		
+			echo '<div class="error"><p><strong>Static site generation:</strong> The path named by <code>STATICGEN_PATH</code> is not writeable by the web server.</p></div>';		
 		}
 		$permalink = get_option('permalink_structure');
 		if(!strlen($permalink) || strpos($permalink, '?') !== false)
@@ -177,7 +177,7 @@ class StaticGen
 			echo '<div class="error"><p><strong>Static site generation:</strong> The permalink structure includes URL parameters, which cannot be used with the static site generator. Select a different permalink style to enable site generation.</p></div>';			
 		}
 		echo '<p>Settings for the static site generator are defined in <code>wp-config.php</code>. Their current values are shown below:&mdash;</p>';
-		$defines = array('SOFA_STATIC_PATH', 'SOFA_STATIC_SOURCE_HOST', 'SOFA_STATIC_PUBLIC_HOST', 'SOFA_STATIC_DEBUG', 'SOFA_STATIC_INHIBIT_FETCH', 'SOFA_STATIC_INHIBIT_CRON_REBUILD', 'SOFA_STATIC_REBUILD_ON_SAVE', 'THESPACE_INSTANCE');
+		$defines = array('STATICGEN_PATH', 'STATICGEN_SOURCE_HOST', 'STATICGEN_PUBLIC_HOST', 'STATICGEN_DEBUG', 'STATICGEN_INHIBIT_FETCH', 'STATICGEN_INHIBIT_CRON_REBUILD', 'STATICGEN_REBUILD_ON_SAVE', 'THESPACE_INSTANCE');
 		echo '<table class="widefat">';
 		echo '<thead>';
 		echo '<tr><th scope="col">Name</th><th scope="col">Value</th></tr>';
@@ -280,7 +280,7 @@ class StaticGen
 		 * touched, so that they will be included in this build pass)
 		 */
 		$this->touch($info);
-		if(SOFA_STATIC_REBUILD_ON_SAVE)
+		if(STATICGEN_REBUILD_ON_SAVE)
 		{
 			$this->staticgen_build();
 		}
@@ -308,9 +308,9 @@ class StaticGen
 		$this->subdir = 'current';
 		$this->deferList = null;
 		$this->log('Updating static tree');
-		if(!file_exists(SOFA_STATIC_PATH . '/' . $this->subdir))
+		if(!file_exists(STATICGEN_PATH . '/' . $this->subdir))
 		{
-			if(!SOFA_STATIC_INHIBIT_CRON_REBUILD)
+			if(!STATICGEN_INHIBIT_CRON_REBUILD)
 			{
 				/* Only rebuild immediately if a full rebuild isn't part of an
 				 * externally-triggered process.
@@ -325,7 +325,7 @@ class StaticGen
 			$this->building = false;
 			return;
 		}
-		$lastInfo = @stat(SOFA_STATIC_PATH . '/build-stamp');
+		$lastInfo = @stat(STATICGEN_PATH . '/build-stamp');
 		$last = 0;
 		if(is_array($lastInfo))
 		{
@@ -352,7 +352,7 @@ class StaticGen
 			/* Always update the homepage */
 			$this->fetchAndStore('/');
 		}
-		$f = fopen(SOFA_STATIC_PATH . '/build-stamp', 'w');
+		$f = fopen(STATICGEN_PATH . '/build-stamp', 'w');
 		fclose($f);
 		$this->log('Static tree update completed');
 		$this->building = false;
@@ -397,12 +397,12 @@ class StaticGen
 			return;
 		}
 		set_time_limit(0);
-		$prev = @readlink(SOFA_STATIC_PATH . '/current');
+		$prev = @readlink(STATICGEN_PATH . '/current');
 		if(strlen($prev))
 		{
 			if(substr($prev, 0, 1) != '/')
 			{
-				$prev = realpath(SOFA_STATIC_PATH . '/' . $prev);
+				$prev = realpath(STATICGEN_PATH . '/' . $prev);
 			}
 		}
 		$this->log('Beginning static rebuild -', 'previous build ID=' . $prev);
@@ -410,19 +410,19 @@ class StaticGen
 		{
 			$this->log('Warning: cannot determine base time, build will always be from-scratch');
 		}
-		if(!file_exists(SOFA_STATIC_PATH . '/cache'))
+		if(!file_exists(STATICGEN_PATH . '/cache'))
 		{
-			mkdir(SOFA_STATIC_PATH . '/cache', 0775, true);
-			chmod(SOFA_STATIC_PATH . '/cache', 0775);
+			mkdir(STATICGEN_PATH . '/cache', 0775, true);
+			chmod(STATICGEN_PATH . '/cache', 0775);
 		}
 		$this->subdir = substr(md5(microtime() . getmypid() . rand()), 0, 8);
-		mkdir(SOFA_STATIC_PATH . '/' . $this->subdir, 0775, true);
-		chmod(SOFA_STATIC_PATH . '/' . $this->subdir, 0775);
+		mkdir(STATICGEN_PATH . '/' . $this->subdir, 0775, true);
+		chmod(STATICGEN_PATH . '/' . $this->subdir, 0775);
 		$this->log('New build ID=' . $this->subdir);
 		/* Defer all of the local fetches to aid in profiling */
-		$deferPath = SOFA_STATIC_PATH . '/' . $this->subdir . '/defer';
+		$deferPath = STATICGEN_PATH . '/' . $this->subdir . '/defer';
 		$this->deferList = fopen($deferPath, 'w');
-		$this->writeTypeMap(SOFA_STATIC_PATH . '/' . $this->subdir . '/index.var', '');
+		$this->writeTypeMap(STATICGEN_PATH . '/' . $this->subdir . '/index.var', '');
 		$this->buildSymlinks();
 		$this->log('Target path prepared');
 		do_action('staticgen_pre_rebuild', $this);
@@ -434,9 +434,9 @@ class StaticGen
 		$this->processDeferred($deferPath);		
 		do_action('staticgen_post_rebuild', $this);
 		$this->log('Post-rebuild complete');
-		@unlink(SOFA_STATIC_PATH . '/current');
-		symlink(realpath(SOFA_STATIC_PATH . '/' . $this->subdir), SOFA_STATIC_PATH . '/current');
-		file_put_contents(SOFA_STATIC_PATH . '/current/.published', $this->subdir . ':' . time() . ":" . $this->getHostname());
+		@unlink(STATICGEN_PATH . '/current');
+		symlink(realpath(STATICGEN_PATH . '/' . $this->subdir), STATICGEN_PATH . '/current');
+		file_put_contents(STATICGEN_PATH . '/current/.published', $this->subdir . ':' . time() . ":" . $this->getHostname());
 		$this->subdir = 'current';
 		$this->log('New build', $this->subdir, 'is now active');
 		if(strlen($prev))
@@ -445,7 +445,7 @@ class StaticGen
 			$this->log('Removal of', $prev, 'complete');
 		}
 		$this->unlockInstance();
-		$f = fopen(SOFA_STATIC_PATH . '/build-stamp', 'w');
+		$f = fopen(STATICGEN_PATH . '/build-stamp', 'w');
 		fclose($f);
 		$this->log('Rebuild complete');
 	}
@@ -453,7 +453,7 @@ class StaticGen
 	protected function processDeferred($path)
 	{		
 		$this->deferList = null;
-		if(SOFA_STATIC_INHIBIT_FETCH)
+		if(STATICGEN_INHIBIT_FETCH)
 		{
 			$this->log('Instance is configured to inhibit fetches');
 			return;
@@ -735,9 +735,9 @@ class StaticGen
 			return null;
 		}
 		/* Allow the source hostname to be overridden */
-		if(defined('SOFA_STATIC_SOURCE_HOST'))
+		if(defined('STATICGEN_SOURCE_HOST'))
 		{
-			$sourceUrl = 'http://' . SOFA_STATIC_SOURCE_HOST . $url['path'];
+			$sourceUrl = 'http://' . STATICGEN_SOURCE_HOST . $url['path'];
 		}
 		else if(!isset($url['host']) || !strlen($url['host']))
 		{
@@ -779,7 +779,7 @@ class StaticGen
 		{
 			return $path;
 		}
-		return SOFA_STATIC_PATH . '/' . $this->subdir . $path;
+		return STATICGEN_PATH . '/' . $this->subdir . $path;
 	}
 
 	/* For a given source URL, determine the canonical Content-Location
@@ -817,7 +817,7 @@ class StaticGen
 	public function mkdir($destDir)
 	{
 		$realDir = realpath($destDir);
-		$base = realpath(SOFA_STATIC_PATH . '/' . $this->subdir);
+		$base = realpath(STATICGEN_PATH . '/' . $this->subdir);
 /*		if(strncmp($destDir, $base, strlen($base)) && strncmp($realDir, $base, strlen($base)))
 		{
 			throw new Exception('Invalid destDir specified in call to StaticGen::mkdir(): ' . $destDir);
@@ -895,7 +895,7 @@ class StaticGen
 					{
 						$location = substr($location, 1);
 					}
-					$location = SOFA_STATIC_PUBLIC_HOST . $location;
+					$location = STATICGEN_PUBLIC_HOST . $location;
 				}
 				$this->writeContentForLink($permalink, '', array(
 					'Status' => '301 Moved',
@@ -992,7 +992,7 @@ class StaticGen
 		}
 		$buf[] = '';
 		$buf[] = $content;
-		$destPath = SOFA_STATIC_PATH . '/' . $this->subdir . $path;
+		$destPath = STATICGEN_PATH . '/' . $this->subdir . $path;
 		$destDir = dirname($destPath);
 //		echo "<pre>[writeContentForLink: destPath = " . $destPath . ", destDir = " . $destDir . "]</pre>\n";
 		$this->mkdir($destDir);
@@ -1018,7 +1018,7 @@ class StaticGen
 		$buf = null;
 		$loadedFromCache = false;
 		$cacheKey = md5($sourceUrl);
-		$cachePath = SOFA_STATIC_PATH . '/cache/' . $cacheKey;
+		$cachePath = STATICGEN_PATH . '/cache/' . $cacheKey;
 		if(isset($cacheTime))
 		{
 			@$st = stat($cachePath);
@@ -1090,8 +1090,8 @@ class StaticGen
 		}
 		
 		$rel = substr($content, strlen($abs));
-		@unlink(SOFA_STATIC_PATH . '/' . $this->subdir . '/' . $rel);
-		symlink(realpath($content), SOFA_STATIC_PATH . '/' . $this->subdir . '/' . $rel);
+		@unlink(STATICGEN_PATH . '/' . $this->subdir . '/' . $rel);
+		symlink(realpath($content), STATICGEN_PATH . '/' . $this->subdir . '/' . $rel);
 		$info = wp_upload_dir();
 		$dirs = array($info['basedir']);
 		foreach($dirs as $d)
@@ -1107,8 +1107,8 @@ class StaticGen
 				continue;
 			}
 			$rel = substr($d, strlen($abs));
-			@unlink(SOFA_STATIC_PATH . '/' . $this->subdir . '/' . $rel);
-			symlink(realpath($d), SOFA_STATIC_PATH . '/' . $this->subdir . '/' . $rel);
+			@unlink(STATICGEN_PATH . '/' . $this->subdir . '/' . $rel);
+			symlink(realpath($d), STATICGEN_PATH . '/' . $this->subdir . '/' . $rel);
 		}
 	}
 

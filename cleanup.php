@@ -35,7 +35,7 @@ if(!defined('THESPACE_INSTANCE'))
 
 global $wpdb;
 
-$wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`blog_id`, `option_name`, `option_value`) VALUES (0, '_static_instance', '');");
+$wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`option_name`, `option_value`) VALUES ('_static_instance', '');");
 /* Reset _static_instance to an empty string where _static_instance is set to THESPACE_INSTANCE */
 $wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', THESPACE_INSTANCE));
 /* Find out whether the UPDATE changed anything */

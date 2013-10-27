@@ -33,14 +33,14 @@ if(!defined('THESPACE_INSTANCE'))
 {
 	define('THESPACE_INSTANCE', php_uname('n'));
 }
-if(!defined('SOFA_STATIC_PATH'))
+if(!defined('STATICGEN_PATH'))
 {
-	echo "SOFA_STATIC_PATH is not defined, aborting.\n";
+	echo "STATICGEN_PATH is not defined, aborting.\n";
 	exit(1);
 }
-if(!defined('SOFA_STATIC_SOURCE_HOST'))
+if(!defined('STATICGEN_SOURCE_HOST'))
 {
-	echo "SOFA_STATIC_SOURCE_HOST is not defined, aborting.\n";
+	echo "STATICGEN_SOURCE_HOST is not defined, aborting.\n";
 	exit(1);
 }
 
@@ -54,9 +54,9 @@ if($inhibit)
 /** Trigger wp-cron **/
 StaticGen::$instance->rebuild();
 
-if(!file_exists(SOFA_STATIC_PATH . '/current'))
+if(!file_exists(STATICGEN_PATH . '/current'))
 {
-	echo SOFA_STATIC_PATH . "/current does not exist, aborting.\n";
+	echo STATICGEN_PATH . "/current does not exist, aborting.\n";
 	exit(1);
 }
 
