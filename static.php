@@ -375,6 +375,8 @@ class StaticGen
 	
 	protected function lockInstance()
 	{
+		global $wpdb;
+		
 		$wpdb->query("INSERT IGNORE INTO " . $wpdb->options . " (`option_name`, `option_value`) VALUES ('_static_instance', '');");			
 		/* Reset _static_instance to STATICGEN_INSTANCE  where _static_instance is an empty string*/
 		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", STATICGEN_INSTANCE, '_static_instance', ''));
@@ -390,6 +392,8 @@ class StaticGen
 	
 	protected function unlockInstance()
 	{
+		global $wpdb;
+		
 		$wpdb->query($wpdb->prepare("UPDATE " . $wpdb->options . " SET `option_value` = %s WHERE `option_name` = %s AND `option_value` = %s", '', '_static_instance', STATICGEN_INSTANCE));
 	}
 	
@@ -398,8 +402,6 @@ class StaticGen
 	 */
 	public function rebuild()
 	{
-		global $wpdb;
-
 		if(!$this->lockInstance())
 		{
 			return;
