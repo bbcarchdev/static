@@ -83,6 +83,26 @@ if(!defined('STATICGEN_USE_VAR'))
 	define('STATICGEN_USE_VAR', false);
 }
 
+abstract class StaticGenHandler
+{
+	protected $priority = 10;
+	
+	public function __construct($inst)
+	{
+		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_phase'), $this->priority, 1);
+	}
+	
+	public /*callback*/ function staticgen_rebuild_phase($instance)
+	{
+	}
+}
+
+require_once(dirname(__FILE__) . '/home.php');
+require_once(dirname(__FILE__) . '/posts.php');
+require_once(dirname(__FILE__) . '/taxonomies.php');
+require_once(dirname(__FILE__) . '/archives.php');
+require_once(dirname(__FILE__) . '/feeds.php');
+
 class StaticGen
 {
 	protected $siteUrl = array();
@@ -97,6 +117,8 @@ class StaticGen
 	public $building = false;
 	
 	public static $instance;
+	
+	protected $handlers = array();
 	
 	public function __construct()
 	{	
@@ -140,14 +162,15 @@ class StaticGen
 	public /*callback*/ function init()
 	{
 		$this->registerMIMEType('text/html', array('ext' => '.html', 'hidden' => true));
+
+		/* Register the build phases */
+		$this->handlers['home'] = new StaticGenHome($this);
+		$this->handlers['taxonomies'] = new StaticGenTaxonomies($this);
+		$this->handlers['archives'] = new StaticGenArchives($this);
+		$this->handlers['feeds'] = new StaticGenFeeds($this);
+		$this->handlers['posts'] = new StaticGenPosts($this);
 		do_action('staticgen_init', $this);
-		/* Phases */
-		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_home'));
-		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_taxonomies'));
-/*		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_users')); */
-		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_archives'));
-		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_feeds'));
-		add_action('staticgen_rebuild_phase', array($this, 'staticgen_rebuild_posts'), 200, 1);
+
 		/* Cron actions */
 		add_action('staticgen_build', array($this, 'staticgen_build'));
 		if(!STATICGEN_INHIBIT_CRON_REBUILD)
@@ -503,7 +526,7 @@ class StaticGen
 	}
 
 	/* Perform an action as do_action does, but with additional logging & wrapping */
-	protected function performAction($tag, $arg = '')
+	public function performAction($tag, $arg = '')
 	{
 		global $wp_filter, $wp_actions, $merged_filters, $wp_current_filter;
 	
@@ -573,46 +596,6 @@ class StaticGen
 		$this->log('Completed action:', $tag);
 	}
 	
-	/* Write the site homepage, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
-	public /*callback*/ function staticgen_rebuild_home($instance)
-	{
-		$this->fetchAndStore('/');
-	}
-
-	/* Write all posts, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
-	public /*callback*/ function staticgen_rebuild_posts($instance)
-	{
-		global $wpdb;
-		static $statusList = array('publish', 'future', 'private', 'pending');
-
-		$this->performAction('staticgen_rebuild_posts_begin', $instance);
-		$permalink = get_option('permalink_structure');
-		$permalink = str_replace('%postname%', '', $permalink);
-		if(strpos($permalink, '%') === false)
-		{		
-			$object = (object) null;
-			$object->object_type = 'posts';
-			$object->link = $permalink;
-			$this->updateObject($object, null, $permalink);
-		}
-		foreach($statusList as $status)
-		{
-			$list = $wpdb->get_col($wpdb->prepare('SELECT `ID` FROM ' . $wpdb->posts . ' WHERE `post_status` = %s', $status));
-			$this->log('Updating', count($list), 'posts');
-			$c = 0;
-			foreach($list as $post)
-			{
-				$c++;		
-				$this->updatePost($post, true);
-				if(!($c % 20))
-				{
-					$this->log('Updated', $c, 'posts');
-				}
-			}
-		}
-		$this->performAction('staticgen_rebuild_posts_complete', $instance);
-	}
-
 	/* Write all user pages, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
 	/* XXX Currently disabled */
 	public /*callback*/ function staticgen_rebuild_users($instance)
@@ -628,70 +611,6 @@ class StaticGen
 		foreach($list as $user)
 		{
 			$this->updateUser($user, $root);
-		}
-	}
-	
-	/* Write all of the taxonomies, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
-	public /*callback*/ function staticgen_rebuild_taxonomies($instance, $root = null)
-	{
-		$taxonomies = get_taxonomies();
-		$root = $this->siteUrl();
-		if(substr($root, -1) != '/')
-		{
-			$root .= '/';
-		}
-		foreach($taxonomies as $tax)
-		{
-			$this->log('Building ' . $tax);
-			$obj = get_taxonomy($tax);
-			if(empty($obj->public) || !isset($obj->rewrite) || !strlen($obj->rewrite['slug']))
-			{
-				continue;
-			}
-			$base = $root . $obj->rewrite['slug'];
-			$obj->object_type = 'taxonomy';
-			$fallback = array('text/html' => $base);
-			$this->updateObject($obj, null, $base, $fallback);
-			$terms = get_terms($obj->name);
-			foreach($terms as $k => $v)
-			{
-				$link = get_term_link($v);
-				$v->object_type = 'term';
-				$v->taxonomy_object = $obj;
-				$v->link = $link;
-				$fallback = array('text/html' => $link);
-				$this->updateObject($v, null, $link, $fallback);
-			}
-		}
-	}
-
-	/* Write the static archives, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
-	public /*callback*/ function staticgen_rebuild_archives($instance)
-	{
-		global $wpdb;
-
-		$earliest = $wpdb->get_var($wpdb->prepare('SELECT MIN(`post_date`) FROM ' . $wpdb->posts . ' WHERE `post_status` = %s', 'publish'));
-		$year = intval(substr($earliest, 0, 4));
-		$thisyear = intval(strftime('%Y'));
-		for($y = $year; $y <= $thisyear; $y++)
-		{
-			$this->updateYearArchive($y);
-		}
-	}
-
-	/* Write all of the RSS/Atom feeds, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
-	public /*callback*/ function staticgen_rebuild_feeds($instance)
-	{
-		$feeds = array(
-			'/feed' => array('.rss', 'application/rss+xml'),
-			'/feed/rss' => array('.rss', 'application/rss+xml'),
-			'/feed/rss2' => array('.rss', 'application/rss+xml'),
-			'/feed/atom' => array('.atom', 'application/atom+xml'),
-			'/feed/rdf' => array('.rdf', 'application/rdf+xml'),
-			);
-		foreach($feeds as $uri => $info)
-		{
-			$this->fetchAndStore($uri, $info[0], null, $info[1]);
 		}
 	}
 	
@@ -1030,7 +949,7 @@ class StaticGen
 	}
 
 	/* Write $content, notionally matching that at $sourceUrl, to the filesystem */
-	protected function writeContentForLink($sourceUrl, $content, $headers, $defaultExt = '.html')
+	public function writeContentForLink($sourceUrl, $content, $headers, $defaultExt = '.html')
 	{
 		$path = $this->destPath($sourceUrl, $defaultExt);
 		if($path === null)
@@ -1068,7 +987,7 @@ class StaticGen
 	}
 
 	/* Update an individual static resource which will be retrieved from the source */
-	protected function fetchAndStore($sourceUrl, $defaultExt = '.html', $cacheTime = null, $contentType = 'text/html')
+	public function fetchAndStore($sourceUrl, $defaultExt = '.html', $cacheTime = null, $contentType = 'text/html')
 	{
 		if(isset($this->deferList))
 		{
@@ -1180,7 +1099,7 @@ class StaticGen
 	}
 
 	/* Update the static version of a post */
-	protected function updatePost($info, $useCache = false)
+	public function updatePost($info, $useCache = false)
 	{
 		$subsidiaries = array();
 		
@@ -1224,38 +1143,6 @@ class StaticGen
 		}
 	}
 	
-	/* Update the static archive for a year */
-	protected function updateYearArchive($year, $root = null)
-	{
-		global $wpdb;
-
-		if(!strlen($root))
-		{
-			$root = $this->siteUrl();
-			if(substr($root, -1) != '/')
-			{
-				$root .= '/';
-			}
-		}
-		$this->fetchAndStore(get_year_link($year));
-		for($month = 1; $month <= 12; $month++)
-		{			
-			$a = sprintf('%04d-%02d-01 00:00:00', $year, $month);
-			$b = sprintf('%04d-%02d-01 00:00:00', ($month == 12 ? $year + 1 : $year), ($month == 12 ? 1 : $month + 1));
-			$id = $wpdb->get_var($wpdb->prepare('SELECT `ID` FROM ' . $wpdb->posts . ' WHERE `post_date` >= %s AND `post_date` < %s AND `post_status` = %s', $a, $b, 'publish'));
-			if(strlen($id))
-			{
-				$this->updateMonthArchive($year, $month, $root);
-			}
-		}
-	}
-	
-	/* Update the static version of a monthly archive */
-	protected function updateMonthArchive($year, $month, $root)
-	{
-		$this->fetchAndStore(get_month_link($year, $month));
-	}
-
 	/* Update the static version of an author page */
 	protected function updateUser($user, $root = null)
 	{
