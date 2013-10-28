@@ -102,6 +102,7 @@ require_once(dirname(__FILE__) . '/posts.php');
 require_once(dirname(__FILE__) . '/taxonomies.php');
 require_once(dirname(__FILE__) . '/archives.php');
 require_once(dirname(__FILE__) . '/feeds.php');
+require_once(dirname(__FILE__) . '/users.php');
 
 class StaticGen
 {
@@ -169,6 +170,8 @@ class StaticGen
 		$this->handlers['archives'] = new StaticGenArchives($this);
 		$this->handlers['feeds'] = new StaticGenFeeds($this);
 		$this->handlers['posts'] = new StaticGenPosts($this);
+		$this->handlers['users'] = new StaticGenUsers($this);
+
 		do_action('staticgen_init', $this);
 
 		/* Cron actions */
@@ -595,25 +598,7 @@ class StaticGen
 		array_pop($wp_current_filter);		
 		$this->log('Completed action:', $tag);
 	}
-	
-	/* Write all user pages, invoked by staticgen_rebuild() via the staticgen_rebuild_phase hook */
-	/* XXX Currently disabled */
-	public /*callback*/ function staticgen_rebuild_users($instance)
-	{
-		global $wpdb;
-
-		$list = $wpdb->get_col($wpdb->prepare('SELECT DISTINCT `post_author` FROM ' . $wpdb->posts));
-		$root = $this->siteUrl();
-		if(substr($root, -1) != '/')
-		{
-			$root .= '/';
-		}
-		foreach($list as $user)
-		{
-			$this->updateUser($user, $root);
-		}
-	}
-	
+		
 	/* Update a post */
 	public /*callback*/ function static_update_post($post)
 	{
@@ -1140,29 +1125,6 @@ class StaticGen
 			
 			$fallback = array('text/html' => $permalink . '/' . $sub);
 			$this->updateObject($info, $custom, $permalink . '/' . $sub, $fallback, $useCache);
-		}
-	}
-	
-	/* Update the static version of an author page */
-	protected function updateUser($user, $root = null)
-	{
-		global $wpdb;
-
-		if(!strlen($root))
-		{
-			$root = $this->siteUrl();
-			if(substr($root, -1) != '/')
-			{
-				$root .= '/';
-			}
-		}
-		if(!is_object($user))
-		{
-			$user = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->users . ' WHERE `ID` = %d', $user));
-		}
-		if(is_object($user))
-		{
-			$this->fetchAndStore($root . 'authors/' . $user->user_login);
 		}
 	}
 }
